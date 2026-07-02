@@ -1,0 +1,535 @@
+
+Action: file_editor create /app/backend/server.py --file-text "\"\"\"TalentRank AI — Explainable Candidate Intelligence & Ranking Platform\"\"\"
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
+from dotenv import load_dotenv
+from starlette.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+import os
+import io
+import csv
+import json
+import re
+import logging
+import uuid
+from pathlib import Path
+from typing import List, Optional
+from datetime import datetime, timezone
+
+from pydantic import BaseModel, Field, ConfigDict
+from pypdf import PdfReader
+
+from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / \".env\")
+
+mongo_url = os.environ[\"MONGO_URL\"]
+client = AsyncIOMotorClient(mongo_url)
+db = client[os.environ[\"DB_NAME\"]]
+
+EMERGENT_LLM_KEY = os.environ.get(\"EMERGENT_LLM_KEY\", \"\")
+
+app = FastAPI(title=\"TalentRank AI\")
+api = APIRouter(prefix=\"/api\")
+
+logging.basicConfig(level=logging.INFO, format=\"%(asctime)s - %(levelname)s - %(message)s\")
+log = logging.getLogger(\"talentrank\")
+
+
+# ---------------------------------------------------------------------------
+# Models
+# ---------------------------------------------------------------------------
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+class JobCreate(BaseModel):
+    title: str
+    company: Optional[str] = \"\"
+    description: str
+    required_skills: List[str] = Field(default_factory=list)
+    seniority: Optional[str] = \"mid\"  # junior | mid | senior | lead
+
+
+class Job(BaseModel):
+    model_config = ConfigDict(extra=\"ignore\")
+    id: str
+    title: str
+    company: str = \"\"
+    description: str
+    required_skills: List[str] = []
+    seniority: str = \"mid\"
+    created_at: str
+
+
+class CandidateManualCreate(BaseModel):
+    name: str
+    email: Optional[str] = \"\"
+    headline: Optional[str] = \"\"
+    years_experience: Optional[float] = 0
+    education: Optional[str] = \"\"
+    skills: List[str] = Field(default_factory=list)
+    resume_text: Optional[str] = \"\"
+
+
+class ScoreBreakdown(BaseModel):
+    overall: int = 0
+    skills: int = 0
+    experience: int = 0
+    education: int = 0
+    culture_fit: int = 0
+
+
+class Candidate(BaseModel):
+    model_config = ConfigDict(extra=\"ignore\")
+    id: str
+    job_id: str
+    name: str
+    email: str = \"\"
+    headline: str = \"\"
+    years_experience: float = 0
+    education: str = \"\"
+    skills: List[str] = []
+    resume_text: str = \"\"
+    scores: ScoreBreakdown = Field(default_factory=ScoreBreakdown)
+    strengths: List[str] = []
+    gaps: List[str] = []
+    explanation: str = \"\"
+    ranked: bool = False
+    created_at: str
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def _job_from_doc(d: dict) -> Job:
+    d.pop(\"_id\", None)
+    return Job(**d)
+
+
+def _candidate_from_doc(d: dict) -> Candidate:
+    d.pop(\"_id\", None)
+    return Candidate(**d)
+
+
+def _extract_pdf_text(data: bytes) -> str:
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        text_parts = []
+        for page in reader.pages:
+            text_parts.append(page.extract_text() or \"\")
+        return \"\n\".join(text_parts).strip()
+    except Exception as e:
+        log.warning(f\"PDF parse failed: {e}\")
+        return \"\"
+
+
+NAME_RE = re.compile(r\"^([A-Z][a-z'\-]+(?:\s+[A-Z][a-z'\-]+){1,3})\", re.M)
+EMAIL_RE = re.compile(r\"[\w\.-]+@[\w\.-]+\.\w+\")
+YEARS_RE = re.compile(r\"(\d{1,2})\+?\s+years?\", re.I)
+
+
+def _quick_parse_resume(text: str) -> dict:
+    \"\"\"Very small heuristic parser used only for prefilling manual fields.\"\"\"
+    name = \"\"
+    email = \"\"
+    years = 0.0
+    m = EMAIL_RE.search(text)
+    if m:
+        email = m.group(0)
+    m = NAME_RE.search(text.strip())
+    if m:
+        name = m.group(1).strip()
+    m = YEARS_RE.search(text)
+    if m:
+        try:
+            years = float(m.group(1))
+        except ValueError:
+            years = 0.0
+    return {\"name\": name, \"email\": email, \"years_experience\": years}
+
+
+def _extract_json(raw: str) -> dict:
+    \"\"\"Extract the first JSON object from an LLM response.\"\"\"
+    raw = raw.strip()
+    if raw.startswith(\"```\"):
+        raw = re.sub(r\"^```(?:json)?\", \"\", raw).strip()
+        raw = re.sub(r\"```$\", \"\", raw).strip()
+    start = raw.find(\"{\")
+    end = raw.rfind(\"}\")
+    if start != -1 and end != -1:
+        raw = raw[start : end + 1]
+    return json.loads(raw)
+
+
+async def _rank_candidate_with_llm(job: Job, cand: Candidate) -> dict:
+    \"\"\"Call Claude Sonnet 4.5 to score & explain a single candidate.\"\"\"
+    session_id = f\"rank-{job.id}-{cand.id}\"
+    system = (
+        \"You are TalentRank AI, a rigorous, explainable recruiting analyst. \"
+        \"You evaluate ONE candidate against ONE job description and return a strict JSON object. \"
+        \"Be objective, evidence-based, and concise. Never invent facts not present in the input. \"
+        \"Return ONLY valid JSON, no prose, no markdown fences.\"
+    )
+    chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message=system).with_model(
+        \"anthropic\", \"claude-sonnet-4-5-20250929\"
+    )
+
+    prompt = f\"\"\"
+Evaluate the candidate below against the job. Output STRICT JSON with this exact shape:
+
+{{
+  \"scores\": {{
+    \"skills\": <int 0-100>,
+    \"experience\": <int 0-100>,
+    \"education\": <int 0-100>,
+    \"culture_fit\": <int 0-100>,
+    \"overall\": <int 0-100>
+  }},
+  \"strengths\": [\"short bullet\", \"short bullet\", \"short bullet\"],
+  \"gaps\": [\"short bullet\", \"short bullet\"],
+  \"explanation\": \"2-3 sentence rationale tying evidence in the resume to the job requirements.\"
+}}
+
+Rules:
+- \"overall\" MUST be a weighted average: 0.45*skills + 0.30*experience + 0.10*education + 0.15*culture_fit, rounded.
+- If information is missing, penalise that dimension (e.g. no education info => education ~40).
+- Culture-fit = seniority alignment + industry/domain alignment + soft-skills signals.
+- Return ONLY the JSON object.
+
+=== JOB ===
+Title: {job.title}
+Company: {job.company}
+Seniority target: {job.seniority}
+Required skills: {\", \".join(job.required_skills) or \"(inferred from description)\"}
+Description:
+{job.description}
+
+=== CANDIDATE ===
+Name: {cand.name}
+Headline: {cand.headline}
+Years of experience: {cand.years_experience}
+Education: {cand.education}
+Skills: {\", \".join(cand.skills) or \"(inferred from resume)\"}
+Resume / bio:
+{cand.resume_text or \"(no resume text supplied)\"}
+\"\"\".strip()
+
+    reply = await chat.send_message(UserMessage(text=prompt))
+    log.info(f\"LLM reply for {cand.name} (len={len(reply)})\")
+    parsed = _extract_json(reply)
+
+    scores = parsed.get(\"scores\", {})
+    return {
+        \"scores\": {
+            \"skills\": int(scores.get(\"skills\", 0)),
+            \"experience\": int(scores.get(\"experience\", 0)),
+            \"education\": int(scores.get(\"education\", 0)),
+            \"culture_fit\": int(scores.get(\"culture_fit\", 0)),
+            \"overall\": int(scores.get(\"overall\", 0)),
+        },
+        \"strengths\": [str(x) for x in parsed.get(\"strengths\", [])][:5],
+        \"gaps\": [str(x) for x in parsed.get(\"gaps\", [])][:5],
+        \"explanation\": str(parsed.get(\"explanation\", \"\")).strip(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Routes: health
+# ---------------------------------------------------------------------------
+@api.get(\"/\")
+async def root():
+    return {\"service\": \"TalentRank AI\", \"status\": \"ok\"}
+
+
+@api.get(\"/stats\")
+async def stats():
+    jobs_count = await db.jobs.count_documents({})
+    cands_count = await db.candidates.count_documents({})
+    ranked_count = await db.candidates.count_documents({\"ranked\": True})
+    top_docs = (
+        await db.candidates.find({\"ranked\": True}, {\"_id\": 0})
+        .sort(\"scores.overall\", -1)
+        .limit(3)
+        .to_list(3)
+    )
+    return {
+        \"jobs\": jobs_count,
+        \"candidates\": cands_count,
+        \"ranked\": ranked_count,
+        \"avg_score\": (
+            round(
+                sum(c[\"scores\"][\"overall\"] for c in top_docs) / len(top_docs), 1
+            )
+            if top_docs
+            else 0
+        ),
+        \"top\": top_docs,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Routes: jobs
+# ---------------------------------------------------------------------------
+@api.post(\"/jobs\", response_model=Job)
+async def create_job(payload: JobCreate):
+    job = Job(
+        id=str(uuid.uuid4()),
+        title=payload.title.strip(),
+        company=(payload.company or \"\").strip(),
+        description=payload.description.strip(),
+        required_skills=[s.strip() for s in payload.required_skills if s.strip()],
+        seniority=payload.seniority or \"mid\",
+        created_at=_now_iso(),
+    )
+    await db.jobs.insert_one(job.model_dump())
+    return job
+
+
+@api.get(\"/jobs\", response_model=List[Job])
+async def list_jobs():
+    docs = await db.jobs.find({}, {\"_id\": 0}).sort(\"created_at\", -1).to_list(500)
+    return [_job_from_doc(d) for d in docs]
+
+
+@api.get(\"/jobs/{job_id}\", response_model=Job)
+async def get_job(job_id: str):
+    doc = await db.jobs.find_one({\"id\": job_id}, {\"_id\": 0})
+    if not doc:
+        raise HTTPException(404, \"Job not found\")
+    return _job_from_doc(doc)
+
+
+@api.delete(\"/jobs/{job_id}\")
+async def delete_job(job_id: str):
+    await db.jobs.delete_one({\"id\": job_id})
+    await db.candidates.delete_many({\"job_id\": job_id})
+    return {\"ok\": True}
+
+
+# ---------------------------------------------------------------------------
+# Routes: candidates
+# ---------------------------------------------------------------------------
+@api.get(\"/jobs/{job_id}/candidates\", response_model=List[Candidate])
+async def list_candidates(job_id: str):
+    docs = (
+        await db.candidates.find({\"job_id\": job_id}, {\"_id\": 0})
+        .sort([(\"ranked\", -1), (\"scores.overall\", -1), (\"created_at\", -1)])
+        .to_list(1000)
+    )
+    return [_candidate_from_doc(d) for d in docs]
+
+
+@api.post(\"/jobs/{job_id}/candidates\", response_model=Candidate)
+async def add_candidate_manual(job_id: str, payload: CandidateManualCreate):
+    job_doc = await db.jobs.find_one({\"id\": job_id}, {\"_id\": 0})
+    if not job_doc:
+        raise HTTPException(404, \"Job not found\")
+    cand = Candidate(
+        id=str(uuid.uuid4()),
+        job_id=job_id,
+        name=payload.name.strip(),
+        email=(payload.email or \"\").strip(),
+        headline=(payload.headline or \"\").strip(),
+        years_experience=float(payload.years_experience or 0),
+        education=(payload.education or \"\").strip(),
+        skills=[s.strip() for s in payload.skills if s.strip()],
+        resume_text=(payload.resume_text or \"\").strip(),
+        created_at=_now_iso(),
+    )
+    await db.candidates.insert_one(cand.model_dump())
+    return cand
+
+
+@api.post(\"/jobs/{job_id}/candidates/upload\", response_model=Candidate)
+async def upload_candidate_resume(
+    job_id: str,
+    file: UploadFile = File(...),
+    name: Optional[str] = Form(None),
+):
+    job_doc = await db.jobs.find_one({\"id\": job_id}, {\"_id\": 0})
+    if not job_doc:
+        raise HTTPException(404, \"Job not found\")
+
+    data = await file.read()
+    text = \"\"
+    if file.filename and file.filename.lower().endswith(\".pdf\"):
+        text = _extract_pdf_text(data)
+    else:
+        try:
+            text = data.decode(\"utf-8\", errors=\"ignore\")
+        except Exception:
+            text = \"\"
+
+    if not text.strip():
+        raise HTTPException(400, \"Could not extract any text from the uploaded file\")
+
+    heuristics = _quick_parse_resume(text)
+    cand = Candidate(
+        id=str(uuid.uuid4()),
+        job_id=job_id,
+        name=(name or heuristics[\"name\"] or (file.filename or \"Unknown\")).strip(),
+        email=heuristics[\"email\"],
+        years_experience=heuristics[\"years_experience\"],
+        headline=\"\",
+        education=\"\",
+        skills=[],
+        resume_text=text[:12000],
+        created_at=_now_iso(),
+    )
+    await db.candidates.insert_one(cand.model_dump())
+    return cand
+
+
+@api.delete(\"/candidates/{candidate_id}\")
+async def delete_candidate(candidate_id: str):
+    await db.candidates.delete_one({\"id\": candidate_id})
+    return {\"ok\": True}
+
+
+@api.post(\"/jobs/{job_id}/rank\")
+async def rank_all(job_id: str):
+    job_doc = await db.jobs.find_one({\"id\": job_id}, {\"_id\": 0})
+    if not job_doc:
+        raise HTTPException(404, \"Job not found\")
+    job = _job_from_doc(job_doc)
+
+    cand_docs = await db.candidates.find({\"job_id\": job_id}, {\"_id\": 0}).to_list(500)
+    if not cand_docs:
+        raise HTTPException(400, \"No candidates to rank yet\")
+
+    ranked, failed = 0, 0
+    for d in cand_docs:
+        cand = _candidate_from_doc(dict(d))
+        try:
+            result = await _rank_candidate_with_llm(job, cand)
+            await db.candidates.update_one(
+                {\"id\": cand.id},
+                {
+                    \"$set\": {
+                        \"scores\": result[\"scores\"],
+                        \"strengths\": result[\"strengths\"],
+                        \"gaps\": result[\"gaps\"],
+                        \"explanation\": result[\"explanation\"],
+                        \"ranked\": True,
+                    }
+                },
+            )
+            ranked += 1
+        except Exception as e:
+            log.exception(f\"Ranking failed for {cand.name}: {e}\")
+            failed += 1
+    return {\"ranked\": ranked, \"failed\": failed, \"total\": len(cand_docs)}
+
+
+@api.post(\"/candidates/{candidate_id}/rerank\", response_model=Candidate)
+async def rerank_one(candidate_id: str):
+    doc = await db.candidates.find_one({\"id\": candidate_id}, {\"_id\": 0})
+    if not doc:
+        raise HTTPException(404, \"Candidate not found\")
+    cand = _candidate_from_doc(dict(doc))
+    job_doc = await db.jobs.find_one({\"id\": cand.job_id}, {\"_id\": 0})
+    if not job_doc:
+        raise HTTPException(404, \"Job not found\")
+    job = _job_from_doc(job_doc)
+    result = await _rank_candidate_with_llm(job, cand)
+    await db.candidates.update_one(
+        {\"id\": cand.id},
+        {
+            \"$set\": {
+                \"scores\": result[\"scores\"],
+                \"strengths\": result[\"strengths\"],
+                \"gaps\": result[\"gaps\"],
+                \"explanation\": result[\"explanation\"],
+                \"ranked\": True,
+            }
+        },
+    )
+    updated = await db.candidates.find_one({\"id\": cand.id}, {\"_id\": 0})
+    return _candidate_from_doc(dict(updated))
+
+
+# ---------------------------------------------------------------------------
+# Routes: export
+# ---------------------------------------------------------------------------
+@api.get(\"/jobs/{job_id}/export.csv\")
+async def export_csv(job_id: str):
+    job_doc = await db.jobs.find_one({\"id\": job_id}, {\"_id\": 0})
+    if not job_doc:
+        raise HTTPException(404, \"Job not found\")
+    docs = (
+        await db.candidates.find({\"job_id\": job_id}, {\"_id\": 0})
+        .sort([(\"ranked\", -1), (\"scores.overall\", -1)])
+        .to_list(1000)
+    )
+
+    def gen():
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(
+            [
+                \"Rank\",
+                \"Name\",
+                \"Email\",
+                \"Headline\",
+                \"Overall\",
+                \"Skills\",
+                \"Experience\",
+                \"Education\",
+                \"CultureFit\",
+                \"Explanation\",
+            ]
+        )
+        yield buf.getvalue()
+        buf.seek(0)
+        buf.truncate(0)
+        for i, d in enumerate(docs, 1):
+            s = d.get(\"scores\", {})
+            w.writerow(
+                [
+                    i,
+                    d.get(\"name\", \"\"),
+                    d.get(\"email\", \"\"),
+                    d.get(\"headline\", \"\"),
+                    s.get(\"overall\", 0),
+                    s.get(\"skills\", 0),
+                    s.get(\"experience\", 0),
+                    s.get(\"education\", 0),
+                    s.get(\"culture_fit\", 0),
+                    (d.get(\"explanation\") or \"\").replace(\"\n\", \" \"),
+                ]
+            )
+            yield buf.getvalue()
+            buf.seek(0)
+            buf.truncate(0)
+
+    filename = f\"talentrank_{job_doc['title'].replace(' ', '_')}.csv\"
+    return StreamingResponse(
+        gen(),
+        media_type=\"text/csv\",
+        headers={\"Content-Disposition\": f'attachment; filename=\"{filename}\"'},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Wire up
+# ---------------------------------------------------------------------------
+app.include_router(api)
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get(\"CORS_ORIGINS\", \"*\").split(\",\"),
+    allow_methods=[\"*\"],
+    allow_headers=[\"*\"],
+)
+
+
+@app.on_event(\"shutdown\")
+async def _shutdown():
+    client.close()
+"
+Observation: Overwrite successful: /app/backend/server.py
