@@ -1,0 +1,83 @@
+
+Action: $ tail -n 80 /var/log/supervisor/backend.err.log
+Observation: INFO:     Will watch for changes in these directories: ['/app/backend']
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [860] using WatchFiles
+INFO:     Started server process [862]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[92m12:01:17 - LiteLLM:INFO[0m: utils.py:3427 - 
+LiteLLM completion() model= claude-sonnet-4-5-20250929; provider = openai
+2026-07-02 12:01:17,110 - INFO - 
+LiteLLM completion() model= claude-sonnet-4-5-20250929; provider = openai
+2026-07-02 12:01:17,447 - ERROR - Ranking failed for Ada Lovelace: Failed to generate chat completion: litellm.BadRequestError: OpenAIException - Budget has been exceeded! Current cost: 0.0, Max budget: 0.0
+Traceback (most recent call last):
+  File "/root/.venv/lib/python3.11/site-packages/litellm/llms/openai/openai.py", line 823, in acompletion
+    headers, response = await self.make_openai_chat_completion_request(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.venv/lib/python3.11/site-packages/litellm/litellm_core_utils/logging_utils.py", line 190, in async_wrapper
+    result = await func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.venv/lib/python3.11/site-packages/litellm/llms/openai/openai.py", line 454, in make_openai_chat_completion_request
+    raise e
+  File "/root/.venv/lib/python3.11/site-packages/litellm/llms/openai/openai.py", line 436, in make_openai_chat_completion_request
+    await openai_aclient.chat.completions.with_raw_response.create(
+  File "/root/.venv/lib/python3.11/site-packages/openai/_legacy_response.py", line 381, in wrapped
+    return cast(LegacyAPIResponse[R], await func(*args, **kwargs))
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.venv/lib/python3.11/site-packages/openai/resources/chat/completions/completions.py", line 2589, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+  File "/root/.venv/lib/python3.11/site-packages/openai/_base_client.py", line 1794, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.venv/lib/python3.11/site-packages/openai/_base_client.py", line 1594, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': 'Budget has been exceeded! Current cost: 0.0, Max budget: 0.0', 'type': 'budget_exceeded', 'param': None, 'code': '400'}}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/root/.venv/lib/python3.11/site-packages/litellm/main.py", line 599, in acompletion
+    response = await init_response
+               ^^^^^^^^^^^^^^^^^^^
+  File "/root/.venv/lib/python3.11/site-packages/litellm/llms/openai/openai.py", line 870, in acompletion
+    raise OpenAIError(
+litellm.llms.openai.common_utils.OpenAIError: Error code: 400 - {'error': {'message': 'Budget has been exceeded! Current cost: 0.0, Max budget: 0.0', 'type': 'budget_exceeded', 'param': None, 'code': '400'}}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/root/.venv/lib/python3.11/site-packages/emergentintegrations/llm/chat.py", line 546, in send_message
+    response = await self._execute_completion(messages)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.venv/lib/python3.11/site-packages/emergentintegrations/llm/chat.py", line 540, in _execute_completion
+    return await litellm.acompletion(**params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.venv/lib/python3.11/site-packages/litellm/utils.py", line 1642, in wrapper_async
+    raise e
+  File "/root/.venv/lib/python3.11/site-packages/litellm/utils.py", line 1488, in wrapper_async
+    result = await original_function(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.venv/lib/python3.11/site-packages/litellm/main.py", line 618, in acompletion
+    raise exception_type(
+          ^^^^^^^^^^^^^^^
+  File "/root/.venv/lib/python3.11/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py", line 2328, in exception_type
+    raise e
+  File "/root/.venv/lib/python3.11/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py", line 473, in exception_type
+    raise BadRequestError(
+litellm.exceptions.BadRequestError: litellm.BadRequestError: OpenAIException - Budget has been exceeded! Current cost: 0.0, Max budget: 0.0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/backend/server.py", line 408, in rank_all
+    result = await _rank_candidate_with_llm(job, cand)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/backend/server.py", line 221, in _rank_candidate_with_llm
+    reply = await chat.send_message(UserMessage(text=prompt))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.venv/lib/python3.11/site-packages/emergentintegrations/llm/chat.py", line 551, in send_message
+    raise ChatError(f"Failed to generate chat completion: {str(e)}")
+emergentintegrations.llm.chat.ChatError: Failed to generate chat completion: litellm.BadRequestError: OpenAIException - Budget has been exceeded! Current cost: 0.0, Max budget: 0.0
+Exit code: 0
