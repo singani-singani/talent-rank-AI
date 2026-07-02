@@ -1,0 +1,440 @@
+
+Action: file_editor create /app/frontend/src/pages/JobDetail.jsx --file-text "import { useEffect, useRef, useState } from \"react\";
+import { Link, useParams } from \"react-router-dom\";
+import { api, API, scoreColor } from \"@/lib/api\";
+import { toast } from \"sonner\";
+import {
+  ArrowLeft,
+  UploadSimple,
+  UserPlus,
+  Sparkle,
+  DownloadSimple,
+  ArrowsLeftRight,
+  Trash,
+  ChartBar,
+  ArrowClockwise,
+} from \"@phosphor-icons/react\";
+import ScorePill from \"@/components/ScorePill\";
+import ScoreBar from \"@/components/ScoreBar\";
+
+const emptyManual = {
+  name: \"\",
+  email: \"\",
+  headline: \"\",
+  years_experience: 0,
+  education: \"\",
+  skills: \"\",
+  resume_text: \"\",
+};
+
+export default function JobDetail() {
+  const { id } = useParams();
+  const [job, setJob] = useState(null);
+  const [candidates, setCandidates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [ranking, setRanking] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [manual, setManual] = useState(emptyManual);
+  const [expanded, setExpanded] = useState(null);
+  const fileRef = useRef(null);
+
+  const load = async () => {
+    try {
+      const [j, c] = await Promise.all([api.get(`/jobs/${id}`), api.get(`/jobs/${id}/candidates`)]);
+      setJob(j.data);
+      setCandidates(c.data);
+    } catch {
+      toast.error(\"Failed to load job\");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, [id]);
+
+  const uploadResume = async (file) => {
+    if (!file) return;
+    const fd = new FormData();
+    fd.append(\"file\", file);
+    const t = toast.loading(`Uploading ${file.name}…`);
+    try {
+      await api.post(`/jobs/${id}/candidates/upload`, fd, {
+        headers: { \"Content-Type\": \"multipart/form-data\" },
+      });
+      toast.success(`Added ${file.name}`, { id: t });
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || \"Upload failed\", { id: t });
+    }
+  };
+
+  const submitManual = async (e) => {
+    e.preventDefault();
+    if (!manual.name.trim()) {
+      toast.error(\"Name is required\");
+      return;
+    }
+    try {
+      await api.post(`/jobs/${id}/candidates`, {
+        ...manual,
+        years_experience: Number(manual.years_experience) || 0,
+        skills: manual.skills.split(\",\").map((s) => s.trim()).filter(Boolean),
+      });
+      toast.success(\"Candidate added\");
+      setManual(emptyManual);
+      setShowAdd(false);
+      load();
+    } catch {
+      toast.error(\"Could not add candidate\");
+    }
+  };
+
+  const rank = async () => {
+    if (candidates.length === 0) {
+      toast.error(\"Add candidates first\");
+      return;
+    }
+    setRanking(true);
+    const t = toast.loading(\"TalentRank AI is scoring candidates…\");
+    try {
+      const { data } = await api.post(`/jobs/${id}/rank`);
+      toast.success(`Ranked ${data.ranked} / ${data.total}${data.failed ? ` (${data.failed} failed)` : \"\"}`, { id: t });
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || \"Ranking failed\", { id: t });
+    } finally {
+      setRanking(false);
+    }
+  };
+
+  const rerank = async (candId) => {
+    const t = toast.loading(\"Re-scoring…\");
+    try {
+      await api.post(`/candidates/${candId}/rerank`);
+      toast.success(\"Updated\", { id: t });
+      load();
+    } catch {
+      toast.error(\"Rerank failed\", { id: t });
+    }
+  };
+
+  const removeCand = async (candId) => {
+    if (!window.confirm(\"Remove this candidate?\")) return;
+    await api.delete(`/candidates/${candId}`);
+    toast.success(\"Removed\");
+    load();
+  };
+
+  if (loading) return <div className=\"font-mono text-sm text-slate-500\">Loading…</div>;
+  if (!job) return <div className=\"font-mono text-sm text-rose-600\">Job not found.</div>;
+
+  const rankedCount = candidates.filter((c) => c.ranked).length;
+
+  return (
+    <div className=\"space-y-8\" data-testid=\"job-detail-page\">
+      <div>
+        <Link to=\"/jobs\" data-testid=\"back-to-jobs\" className=\"inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900\">
+          <ArrowLeft size={14} /> All jobs
+        </Link>
+      </div>
+
+      {/* Job header */}
+      <section className=\"border border-slate-200 bg-white\">
+        <div className=\"p-6 sm:p-8 grid grid-cols-1 md:grid-cols-12 gap-6\">
+          <div className=\"md:col-span-8\">
+            <div className=\"overline mb-3\">
+              {job.company || \"—\"} · {job.seniority.toUpperCase()}
+            </div>
+            <h1 className=\"font-display text-3xl sm:text-4xl font-black tracking-tight text-slate-950\" data-testid=\"job-title\">
+              {job.title}
+            </h1>
+            <p className=\"mt-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap max-w-3xl\">
+              {job.description}
+            </p>
+            {job.required_skills.length > 0 && (
+              <div className=\"mt-5\">
+                <div className=\"overline mb-2\">REQUIRED SKILLS</div>
+                <div className=\"flex flex-wrap gap-1.5\">
+                  {job.required_skills.map((s) => (
+                    <span key={s} className=\"px-2 py-1 text-xs font-mono border border-slate-300 bg-slate-50\">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className=\"md:col-span-4 border-t md:border-t-0 md:border-l border-slate-200 md:pl-6 pt-6 md:pt-0\">
+            <div className=\"overline mb-3\">PIPELINE</div>
+            <div className=\"grid grid-cols-2 gap-3\">
+              <div className=\"border border-slate-200 p-3\">
+                <div className=\"overline text-[10px]\">CANDIDATES</div>
+                <div className=\"font-display text-3xl font-black\">{candidates.length}</div>
+              </div>
+              <div className=\"border border-slate-200 p-3\">
+                <div className=\"overline text-[10px]\">RANKED</div>
+                <div className=\"font-display text-3xl font-black text-[#002FA7]\">{rankedCount}</div>
+              </div>
+            </div>
+            <div className=\"mt-4 flex flex-wrap gap-2\">
+              <button onClick={rank} disabled={ranking} data-testid=\"rank-all-btn\" className=\"btn-primary text-sm h-9 flex-1 justify-center disabled:opacity-60\">
+                <Sparkle size={14} weight=\"fill\" /> {ranking ? \"Ranking…\" : \"Run TalentRank AI\"}
+              </button>
+              <Link to={`/jobs/${job.id}/compare`} data-testid=\"compare-btn\" className=\"btn-secondary text-sm h-9 flex-1 justify-center\">
+                <ArrowsLeftRight size={14} /> Compare
+              </Link>
+              <a
+                href={`${API}/jobs/${job.id}/export.csv`}
+                data-testid=\"export-csv-btn\"
+                className=\"btn-secondary text-sm h-9 flex-1 justify-center\"
+              >
+                <DownloadSimple size={14} /> CSV
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Add candidates */}
+      <section className=\"border border-slate-200 bg-white\">
+        <div className=\"flex items-center justify-between px-5 py-3 border-b border-slate-200\">
+          <div>
+            <div className=\"overline\">STEP 02</div>
+            <h2 className=\"font-display text-xl font-bold\">Add candidates</h2>
+          </div>
+          <div className=\"flex gap-2\">
+            <button
+              data-testid=\"upload-resume-btn\"
+              onClick={() => fileRef.current?.click()}
+              className=\"btn-secondary text-sm h-9\"
+            >
+              <UploadSimple size={14} /> Upload PDF
+            </button>
+            <input
+              ref={fileRef}
+              type=\"file\"
+              accept=\".pdf,.txt\"
+              multiple
+              className=\"hidden\"
+              data-testid=\"resume-file-input\"
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                files.forEach(uploadResume);
+                e.target.value = \"\";
+              }}
+            />
+            <button
+              data-testid=\"add-manual-btn\"
+              onClick={() => setShowAdd((v) => !v)}
+              className={showAdd ? \"btn-primary text-sm h-9\" : \"btn-secondary text-sm h-9\"}
+            >
+              <UserPlus size={14} /> {showAdd ? \"Close\" : \"Add manually\"}
+            </button>
+          </div>
+        </div>
+        {showAdd && (
+          <form onSubmit={submitManual} className=\"p-5 grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-slate-200\">
+            <input
+              data-testid=\"cand-name-input\"
+              className=\"sharp-input\"
+              placeholder=\"Full name *\"
+              value={manual.name}
+              onChange={(e) => setManual({ ...manual, name: e.target.value })}
+            />
+            <input
+              data-testid=\"cand-email-input\"
+              className=\"sharp-input\"
+              placeholder=\"Email\"
+              value={manual.email}
+              onChange={(e) => setManual({ ...manual, email: e.target.value })}
+            />
+            <input
+              data-testid=\"cand-headline-input\"
+              className=\"sharp-input md:col-span-2\"
+              placeholder=\"Headline (e.g. Senior React Engineer @ Nimbus)\"
+              value={manual.headline}
+              onChange={(e) => setManual({ ...manual, headline: e.target.value })}
+            />
+            <input
+              data-testid=\"cand-years-input\"
+              type=\"number\"
+              min=\"0\"
+              className=\"sharp-input\"
+              placeholder=\"Years of experience\"
+              value={manual.years_experience}
+              onChange={(e) => setManual({ ...manual, years_experience: e.target.value })}
+            />
+            <input
+              data-testid=\"cand-education-input\"
+              className=\"sharp-input\"
+              placeholder=\"Education (e.g. B.S. CS, Stanford)\"
+              value={manual.education}
+              onChange={(e) => setManual({ ...manual, education: e.target.value })}
+            />
+            <input
+              data-testid=\"cand-skills-input\"
+              className=\"sharp-input md:col-span-2\"
+              placeholder=\"Skills (comma-separated)\"
+              value={manual.skills}
+              onChange={(e) => setManual({ ...manual, skills: e.target.value })}
+            />
+            <textarea
+              data-testid=\"cand-resume-textarea\"
+              rows={5}
+              className=\"sharp-textarea md:col-span-2\"
+              placeholder=\"Optional: paste resume text / bio for richer AI reasoning\"
+              value={manual.resume_text}
+              onChange={(e) => setManual({ ...manual, resume_text: e.target.value })}
+            />
+            <div className=\"md:col-span-2 flex gap-2\">
+              <button type=\"submit\" data-testid=\"cand-submit-btn\" className=\"btn-primary text-sm h-9\">
+                Add candidate
+              </button>
+              <button type=\"button\" onClick={() => { setManual(emptyManual); setShowAdd(false); }} className=\"btn-ghost text-sm\">
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </section>
+
+      {/* Leaderboard */}
+      <section>
+        <div className=\"flex items-baseline justify-between mb-3\">
+          <h2 className=\"font-display text-2xl font-bold\">Leaderboard</h2>
+          <span className=\"font-mono text-xs text-slate-500\">{candidates.length} candidates</span>
+        </div>
+
+        {candidates.length === 0 ? (
+          <div className=\"border border-dashed border-slate-300 p-12 text-center\">
+            <ChartBar size={40} weight=\"duotone\" className=\"mx-auto text-slate-300\" />
+            <div className=\"mt-3 font-mono text-sm text-slate-500\">
+              No candidates yet — upload a resume or add one manually.
+            </div>
+          </div>
+        ) : (
+          <ol className=\"space-y-3 stagger-in\">
+            {candidates.map((c, i) => {
+              const col = scoreColor(c.scores?.overall ?? 0);
+              const isOpen = expanded === c.id;
+              return (
+                <li
+                  key={c.id}
+                  className=\"grid-cell\"
+                  data-testid={`candidate-row-${c.id}`}
+                >
+                  <div className=\"p-4 sm:p-5 grid grid-cols-12 gap-4 items-center\">
+                    <div className=\"col-span-1 flex items-center gap-2\">
+                      <span className=\"font-display text-2xl font-black text-slate-300 tabular-nums\">
+                        {String(i + 1).padStart(2, \"0\")}
+                      </span>
+                    </div>
+                    <div className=\"col-span-11 sm:col-span-4 min-w-0\">
+                      <div className=\"font-semibold truncate\">{c.name}</div>
+                      <div className=\"text-xs text-slate-500 font-mono truncate\">
+                        {c.headline || c.email || `${c.years_experience || 0} yrs exp`}
+                      </div>
+                      {c.skills.length > 0 && (
+                        <div className=\"mt-1.5 flex flex-wrap gap-1\">
+                          {c.skills.slice(0, 5).map((s) => (
+                            <span key={s} className=\"px-1.5 py-0.5 text-[10px] font-mono border border-slate-300 bg-slate-50\">
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className=\"col-span-12 sm:col-span-5 space-y-2\">
+                      {c.ranked ? (
+                        <div className=\"grid grid-cols-4 gap-3\">
+                          <ScoreBar label=\"Skills\" value={c.scores.skills} testid={`bar-skills-${c.id}`} />
+                          <ScoreBar label=\"Exp\" value={c.scores.experience} testid={`bar-exp-${c.id}`} />
+                          <ScoreBar label=\"Edu\" value={c.scores.education} testid={`bar-edu-${c.id}`} />
+                          <ScoreBar label=\"Culture\" value={c.scores.culture_fit} testid={`bar-culture-${c.id}`} />
+                        </div>
+                      ) : (
+                        <div className=\"text-xs text-slate-400 font-mono border border-dashed border-slate-300 p-2 text-center\">
+                          Not ranked yet — run TalentRank AI.
+                        </div>
+                      )}
+                    </div>
+                    <div className=\"col-span-12 sm:col-span-2 flex sm:justify-end items-center gap-3\">
+                      <ScorePill value={c.scores?.overall ?? 0} testid={`overall-${c.id}`} size=\"lg\" />
+                    </div>
+                  </div>
+                  <div className=\"px-5 pb-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3\">
+                    <button
+                      onClick={() => setExpanded(isOpen ? null : c.id)}
+                      data-testid={`toggle-explain-${c.id}`}
+                      className=\"btn-ghost text-xs h-8\"
+                    >
+                      {isOpen ? \"Hide reasoning\" : \"Show reasoning\"}
+                    </button>
+                    {c.ranked && (
+                      <button
+                        onClick={() => rerank(c.id)}
+                        data-testid={`rerank-${c.id}`}
+                        className=\"btn-ghost text-xs h-8\"
+                      >
+                        <ArrowClockwise size={12} /> Re-score
+                      </button>
+                    )}
+                    <span className=\"ml-auto\">
+                      <button
+                        onClick={() => removeCand(c.id)}
+                        data-testid={`remove-${c.id}`}
+                        className=\"btn-ghost text-xs h-8 hover:text-rose-600\"
+                      >
+                        <Trash size={12} /> Remove
+                      </button>
+                    </span>
+                  </div>
+                  {isOpen && (
+                    <div className=\"border-t border-slate-200 bg-slate-50 p-5 grid grid-cols-1 md:grid-cols-3 gap-5\">
+                      <div className=\"md:col-span-2\">
+                        <div className=\"overline mb-2\">AI EXPLANATION</div>
+                        <div className={`text-sm font-mono text-slate-800 leading-relaxed bg-white p-4 border-l-2 ${col.border}`}>
+                          {c.explanation || \"No explanation yet. Run TalentRank AI to generate one.\"}
+                        </div>
+                      </div>
+                      <div className=\"space-y-4\">
+                        {c.strengths.length > 0 && (
+                          <div>
+                            <div className=\"overline mb-2 text-emerald-700\">STRENGTHS</div>
+                            <ul className=\"text-sm text-slate-700 space-y-1\">
+                              {c.strengths.map((s, k) => (
+                                <li key={k} className=\"flex gap-2\">
+                                  <span className=\"text-emerald-600 font-mono\">+</span> {s}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {c.gaps.length > 0 && (
+                          <div>
+                            <div className=\"overline mb-2 text-rose-700\">GAPS</div>
+                            <ul className=\"text-sm text-slate-700 space-y-1\">
+                              {c.gaps.map((s, k) => (
+                                <li key={k} className=\"flex gap-2\">
+                                  <span className=\"text-rose-600 font-mono\">−</span> {s}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
+    </div>
+  );
+}
+"
+Observation: Create successful: /app/frontend/src/pages/JobDetail.jsx
