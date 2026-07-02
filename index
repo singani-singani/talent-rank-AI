@@ -1,0 +1,204 @@
+
+Action: file_editor create /app/frontend/src/index.css --file-text "@import url(\"https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500,400&display=swap\");
+@import url(\"https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap\");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #002fa7;
+  --brand-hover: #002277;
+  --ink: #0a0a0b;
+  --ink-2: #4b5563;
+  --ink-3: #6b7280;
+  --bg-1: #ffffff;
+  --bg-2: #f4f5f8;
+  --bg-3: #e2e4e9;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+  --success: #00c853;
+  --warning: #f5a524;
+  --danger: #ff3b30;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 6% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 6% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 6% 4%;
+    --primary: 223 100% 33%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 240 6% 10%;
+    --destructive: 4 100% 59%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 223 100% 33%;
+    --chart-1: 223 100% 33%;
+    --chart-2: 141 100% 39%;
+    --chart-3: 39 91% 55%;
+    --chart-4: 4 100% 59%;
+    --chart-5: 240 6% 10%;
+    --radius: 0.125rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body {
+    background: var(--bg-1);
+    color: var(--ink);
+    font-family: \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
+    font-family: \"Cabinet Grotesk\", \"IBM Plex Sans\", sans-serif;
+    letter-spacing: -0.01em;
+  }
+  code,
+  pre,
+  .font-mono {
+    font-family: \"IBM Plex Mono\", ui-monospace, SFMono-Regular, monospace;
+  }
+  ::selection {
+    background: #002fa7;
+    color: #fff;
+  }
+}
+
+@layer components {
+  .overline {
+    @apply text-xs uppercase font-semibold text-slate-500;
+    letter-spacing: 0.2em;
+  }
+  .grid-cell {
+    @apply border border-slate-200 bg-white transition-all duration-200 ease-in-out;
+  }
+  .grid-cell:hover {
+    @apply border-slate-400 -translate-y-px;
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-2 h-10 px-4 bg-[#002FA7] text-white font-medium rounded-none border border-[#002FA7] hover:bg-[#002277] transition-colors;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 h-10 px-4 bg-white text-slate-900 font-medium rounded-none border border-slate-300 hover:bg-slate-100 transition-colors;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 h-10 px-3 text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors;
+  }
+  .sharp-input {
+    @apply w-full h-10 px-3 border border-slate-300 rounded-none bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#002FA7] focus:ring-offset-0 focus:border-[#002FA7] transition-colors;
+  }
+  .sharp-textarea {
+    @apply w-full px-3 py-2 border border-slate-300 rounded-none bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#002FA7] focus:ring-offset-0 focus:border-[#002FA7] transition-colors font-mono text-sm;
+  }
+  .score-pill {
+    @apply inline-flex items-center justify-center min-w-[52px] px-2 py-0.5 text-xs font-mono font-semibold border rounded-none;
+  }
+  .diag-bg {
+    background-image: linear-gradient(
+      135deg,
+      rgba(0, 47, 167, 0.04) 0 2px,
+      transparent 2px 8px
+    );
+  }
+}
+
+@layer utilities {
+  .grain {
+    position: relative;
+  }
+  .grain::after {
+    content: \"\";
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    opacity: 0.035;
+    background-image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\");
+  }
+  .stagger-in > * {
+    opacity: 0;
+    transform: translateY(4px);
+    animation: fadein 0.35s ease-out forwards;
+  }
+  .stagger-in > *:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  .stagger-in > *:nth-child(2) {
+    animation-delay: 50ms;
+  }
+  .stagger-in > *:nth-child(3) {
+    animation-delay: 100ms;
+  }
+  .stagger-in > *:nth-child(4) {
+    animation-delay: 150ms;
+  }
+  .stagger-in > *:nth-child(5) {
+    animation-delay: 200ms;
+  }
+  .stagger-in > *:nth-child(6) {
+    animation-delay: 250ms;
+  }
+  .stagger-in > *:nth-child(7) {
+    animation-delay: 300ms;
+  }
+  .stagger-in > *:nth-child(8) {
+    animation-delay: 350ms;
+  }
+  @keyframes fadein {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@layer base {
+  [data-debug-wrapper=\"true\"] {
+    display: contents !important;
+  }
+  [data-debug-wrapper=\"true\"] > * {
+    margin-left: inherit;
+    margin-right: inherit;
+    margin-top: inherit;
+    margin-bottom: inherit;
+    padding-left: inherit;
+    padding-right: inherit;
+    padding-top: inherit;
+    padding-bottom: inherit;
+    column-gap: inherit;
+    row-gap: inherit;
+    gap: inherit;
+    border-left-width: inherit;
+    border-right-width: inherit;
+    border-top-width: inherit;
+    border-bottom-width: inherit;
+    border-left-style: inherit;
+    border-right-style: inherit;
+    border-top-style: inherit;
+    border-bottom-style: inherit;
+    border-left-color: inherit;
+    border-right-color: inherit;
+    border-top-color: inherit;
+    border-bottom-color: inherit;
+  }
+}
+"
+Observation: Overwrite successful: /app/frontend/src/index.css
