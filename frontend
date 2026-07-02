@@ -1,0 +1,6 @@
+
+Action: $ cd /app/frontend && yarn add @phosphor-icons/react 2>&1 | tail -3
+Observation: info All dependencies
+└─ @phosphor-icons/react@2.1.10
+Done in 57.55s.
+Exit code: 0
