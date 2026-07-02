@@ -1,0 +1,39 @@
+
+Action: {
+"original_problem_statement_and_user_choices_inputs": "TalentRank AI — Explainable Candidate Intelligence & Ranking Platform. A hiring platform where recruiters create a job, add candidates (manually or via resume upload), then run an AI (Claude Sonnet 4.5) to rank candidates with explainable score breakdowns across skills, experience, education and culture fit. Side-by-side comparison and CSV shortlist export. User skipped all clarification and requested defaults: PDF upload + manual entry, Claude Sonnet 4.5 via Emergent Universal LLM key, no auth, PDF parsing enabled, full extras (leaderboard, comparison, CSV export).",
+"features_or_bugs_to_test": [
+  "Backend `GET /api/` returns {service, status}",
+  "Backend `GET /api/stats` returns jobs/candidates/ranked/avg_score/top",
+  "Backend `POST /api/jobs` creates a job with title, company, seniority, description, required_skills[]",
+  "Backend `GET /api/jobs` lists jobs sorted by created_at desc",
+  "Backend `GET /api/jobs/{id}` returns the job, 404 on missing",
+  "Backend `POST /api/jobs/{id}/candidates` adds a manual candidate with all fields including skills[] parsed correctly",
+  "Backend `POST /api/jobs/{id}/candidates/upload` accepts a .txt (or PDF) file, extracts text, prefills name/email/years via heuristic",
+  "Backend `GET /api/jobs/{id}/candidates` returns candidates sorted by (ranked desc, overall desc)",
+  "Backend `DELETE /api/candidates/{id}` and `DELETE /api/jobs/{id}` (cascading candidates)",
+  "Backend `GET /api/jobs/{id}/export.csv` returns a CSV with Rank/Name/Email/Overall/... headers",
+  "Frontend Dashboard `/` renders hero, stats grid (4 tiles), Top Candidates panel and Recent Jobs panel; New Job button navigates to `/jobs/new`",
+  "Frontend Jobs list `/jobs` renders table with delete + open actions",
+  "Frontend Create Job `/jobs/new`: `Fill with sample` fills all fields; Submit creates job and redirects to `/jobs/:id`",
+  "Frontend Job Detail `/jobs/:id`: shows job header, `Add manually` toggles form, filling name+headline+skills+resume_text and clicking `cand-submit-btn` adds a candidate to the leaderboard",
+  "Frontend Job Detail: `Upload PDF` opens file input (via `data-testid=upload-resume-btn`) — you can drive `resume-file-input` directly to upload a text file",
+  "Frontend Job Detail: `Compare` button navigates to `/jobs/:id/compare`; `CSV` link points at `/api/jobs/:id/export.csv`",
+  "Frontend Compare page `/jobs/:id/compare`: shows empty-state (needs 2 ranked candidates) since ranking is disabled — verify the empty-state message renders and back link works"
+],
+"files_of_reference": [
+  "/app/backend/server.py — all API routes",
+  "/app/frontend/src/App.js — routes",
+  "/app/frontend/src/pages/Dashboard.jsx — testids: dashboard-page, hero-new-job-btn, hero-view-jobs-btn, stat-jobs, stat-candidates, stat-ranked, stat-avg, dash-view-all-jobs",
+  "/app/frontend/src/pages/Jobs.jsx — testids: jobs-page, jobs-new-btn, job-row-{id}, job-link-{id}, job-open-{id}, job-delete-{id}",
+  "/app/frontend/src/pages/NewJob.jsx — testids: new-job-page, fill-sample-btn, job-title-input, job-company-input, job-seniority-select, job-skills-input, job-description-textarea, create-job-submit",
+  "/app/frontend/src/pages/JobDetail.jsx — testids: job-detail-page, job-title, rank-all-btn, compare-btn, export-csv-btn, upload-resume-btn, resume-file-input, add-manual-btn, cand-name-input, cand-email-input, cand-headline-input, cand-years-input, cand-education-input, cand-skills-input, cand-resume-textarea, cand-submit-btn, candidate-row-{id}, overall-{id}, toggle-explain-{id}, rerank-{id}, remove-{id}",
+  "/app/frontend/src/pages/Compare.jsx — testids: compare-page, compare-back, pick-a, pick-b, compare-card-0, compare-card-1"
+],
+"required_credentials": ["None — the app has no auth. Backend URL is set in /app/frontend/.env as REACT_APP_BACKEND_URL."],
+"testing_type": "both",
+"agent_to_agent_context_note": "IMPORTANT: The AI ranking endpoint (`POST /api/jobs/{id}/rank` and `POST /api/candidates/{id}/rerank`) will currently return {ranked: 0, failed: N} because the Emergent Universal LLM key balance is exhausted (litellm returns 'Budget has been exceeded! Current cost: 0.0, Max budget: 0.0'). This is a KEY BUDGET issue on the user side, NOT a code bug. Please SKIP invoking ranking during tests and just verify the endpoint returns the failed count structure gracefully. Do NOT flag this as a bug against the code. Everything else — CRUD, upload, CSV, UI — should work end-to-end.",
+"prev_test_files_and_folder": "None",
+"mocked_api": { "has_mocked_apis": false, "mocked_apis_list": [] },
+"other_misc_info": "Use REACT_APP_BACKEND_URL from /app/frontend/.env (currently https://talent-rank-4.preview.emergentagent.com) for e2e API calls. For PDF/TXT upload testing, create a simple .txt file with a resume-like content (name at top, email, '5 years experience', etc.) and POST it as multipart file to /api/jobs/{job_id}/candidates/upload."
+}
+Observation: report_file: /app/test_reports/iteration_1.json
