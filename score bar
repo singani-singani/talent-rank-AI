@@ -1,0 +1,19 @@
+
+Action: file_editor create /app/frontend/src/components/ScoreBar.jsx --file-text "import { scoreColor } from \"@/lib/api\";
+
+export default function ScoreBar({ label, value, testid }) {
+  const c = scoreColor(value);
+  return (
+    <div className=\"w-full\" data-testid={testid}>
+      <div className=\"flex items-baseline justify-between mb-1\">
+        <span className=\"overline text-[10px] text-slate-500\">{label}</span>
+        <span className={`font-mono text-xs font-semibold ${c.text}`}>{value}</span>
+      </div>
+      <div className=\"h-1.5 bg-slate-100 border border-slate-200\">
+        <div className={`h-full ${c.bar}`} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      </div>
+    </div>
+  );
+}
+"
+Observation: Create successful: /app/frontend/src/components/ScoreBar.jsx
