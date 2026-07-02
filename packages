@@ -1,0 +1,8 @@
+Now let me install PDF parsing lib and add env var, then build all files in parallel.
+Action: $ cd /app/backend && pip install pypdf==4.3.1 2>&1 | tail -5
+Observation: Collecting pypdf==4.3.1
+  Downloading pypdf-4.3.1-py3-none-any.whl.metadata (7.4 kB)
+Downloading pypdf-4.3.1-py3-none-any.whl (295 kB)
+Installing collected packages: pypdf
+Successfully installed pypdf-4.3.1
+Exit code: 0
