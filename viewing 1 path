@@ -1,0 +1,112 @@
+
+Action: {"type": "mcp_tool", "tool_name": "mcp_view_bulk", "tool_arguments": {"paths": ["/app/design_guidelines.json"]}}
+Observation: ===FILE: /app/design_guidelines.json
+/app/design_guidelines.json:
+1|{
+2|  "theme": "Light",
+3|  "archetype": "4 (Swiss & High-Contrast)",
+4|  "vibe": "Objective, rigid, functional, precise, authoritative, high-trust.",
+5|  "typography": {
+6|    "strategy": "The 'Swiss Brutalist' Corporate approach. High legibility with radical weight contrast.",
+7|    "font_family_headings": "Cabinet Grotesk, sans-serif",
+8|    "font_family_body": "IBM Plex Sans, sans-serif",
+9|    "font_family_mono": "IBM Plex Mono, monospace",
+10|    "hierarchy": {
+11|      "h1": "text-4xl sm:text-5xl tracking-tight leading-none font-black text-slate-950",
+12|      "h2": "text-2xl sm:text-3xl tracking-tight font-bold text-slate-900",
+13|      "h3": "text-xl sm:text-2xl tracking-tight font-semibold text-slate-900",
+14|      "h4": "text-lg sm:text-xl font-medium text-slate-800",
+15|      "body": "text-sm sm:text-base leading-relaxed text-slate-700",
+16|      "overline": "text-xs tracking-[0.2em] uppercase font-semibold text-slate-500",
+17|      "ai_explanation": "text-sm font-mono text-slate-800 leading-relaxed bg-slate-50 p-4 border-l-2 border-[#002FA7]"
+18|    }
+19|  },
+20|  "colors": {
+21|    "background": {
+22|      "primary": "#FFFFFF",
+23|      "secondary": "#F4F5F8",
+24|      "tertiary": "#E2E4E9"
+25|    },
+26|    "text": {
+27|      "primary": "#0A0A0B",
+28|      "secondary": "#4B5563",
+29|      "tertiary": "#6B7280"
+30|    },
+31|    "accents": {
+32|      "brand_primary": "#002FA7",
+33|      "brand_hover": "#002277",
+34|      "success": "#00C853",
+35|      "warning": "#FFD700",
+36|      "danger": "#FF3B30"
+37|    },
+38|    "borders": {
+39|      "default": "#E5E7EB",
+40|      "strong": "#D1D5DB",
+41|      "focus": "#002FA7"
+42|    }
+43|  },
+44|  "layout_spacing": {
+45|    "grid_system": "The 'Control Room' Grid",
+46|    "dashboard_grid": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 or gap-6",
+47|    "container_padding": "p-6 sm:p-8",
+48|    "card_padding": "p-4 sm:p-6",
+49|    "border_radius": "rounded-none sm:rounded-sm",
+50|    "borders": "1px solid border-border",
+51|    "shadows": "shadow-none (avoid heavy shadows, rely on 1px borders for definition)"
+52|  },
+53|  "surface_strategies": {
+54|    "headers": "Solid Background with a hard bottom border (1px border-slate-200). No glassmorphism.",
+55|    "cards": "Grid Borders (The Technical Look). Flat background, 1px subtle border, no shadow. Hover: border color darkens, slight lift (-translate-y-px).",
+56|    "modals": "Flat Solid surfaces with 1px dark border, no blur to keep data clear and readable.",
+57|    "side_by_side_comparison": "Split-pane layout with independent scrolling and sticky table headers."
+58|  },
+59|  "components": {
+60|    "buttons": "Square or very subtle rounded (max 2px). High contrast. Primary: bg-[#002FA7] text-white hover:bg-[#002277]. Secondary: bg-transparent border border-slate-300 text-slate-900 hover:bg-slate-100. data-testid REQUIRED.",
+61|    "tables": "Dense layout, left-aligned text data, numeric data right-aligned. Hover row states (hover:bg-slate-50). Compact headers.",
+62|    "badges": "Square badges. High contrast for scores (e.g., Green for >80%, Yellow for 60-79%, Red for <60%).",
+63|    "charts": "Shadcn/Recharts. Horizontal bar charts for score breakdowns. Keep tooltips square and high contrast.",
+64|    "forms": "Inputs with sharp borders (rounded-none). Focus states: ring-2 ring-[#002FA7] ring-offset-0."
+65|  },
+66|  "motion": {
+67|    "hover_states": "Crisp and immediate. Explicit text color definitions on hover.",
+68|    "transitions": "transition-all duration-200 ease-in-out",
+69|    "stagger": "List items (candidates) load with 50ms stagger."
+70|  },
+71|  "media": {
+72|    "icons": "Phosphor Icons (@phosphor-icons/react) for dense, professional UI.",
+73|    "images": [
+74|      {
+75|        "category": "Candidate Avatar 1",
+76|        "url": "https://images.pexels.com/photos/31869537/pexels-photo-31869537.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+77|        "description": "Professional headshot for top candidate"
+78|      },
+79|      {
+80|        "category": "Candidate Avatar 2",
+81|        "url": "https://images.pexels.com/photos/26872232/pexels-photo-26872232.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+82|        "description": "Professional headshot for second candidate"
+83|      },
+84|      {
+85|        "category": "Auth/Empty State Background",
+86|        "url": "https://images.pexels.com/photos/593158/pexels-photo-593158.jpeg",
+87|        "description": "Abstract geometric facade for login or empty states"
+88|      }
+89|    ]
+90|  },
+91|  "accessibility_and_testing": {
+92|    "testing_attributes": "All interactive elements MUST include data-testid (e.g., data-testid='upload-resume-btn', data-testid='candidate-row').",
+93|    "contrast": "Ensure 4.5:1 ratio for normal text. Focus rings must be high contrast.",
+94|    "html_tags": "Use semantic HTML. Avoid over-using divs. Use <main>, <section>, <article>, <aside>, <nav>, <header>."
+95|  },
+96|  "instructions_to_main_agent": [
+97|    "Install fonts via Google Fonts or Fontsource: Cabinet Grotesk (headings) and IBM Plex Sans (body).",
+98|    "Install @phosphor-icons/react for dense enterprise iconography.",
+99|    "Build a 'Control Room' dense grid for the dashboard. Rely on precise spacing and borders, not shadows.",
+100|    "Do not use soft shadows or rounded cards; use 1px solid borders and flat design to convey trust and authority.",
+101|    "Emphasize data explainability (AI scoring breakdown) using distinct typographic hierarchy (IBM Plex Mono) and sharp accent colors.",
+102|    "Implement the side-by-side comparison using a clean tabular or split-pane layout.",
+103|    "Ensure all components are built using .js/.jsx extensions (No TypeScript).",
+104|    "Apply 'data-testid' to ALL buttons, links, inputs, and key data elements."
+105|  ]
+106|}
+
+===END
