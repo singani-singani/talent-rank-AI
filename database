@@ -1,0 +1,8 @@
+
+Action: file_editor str_replace /app/backend/.env --old-str "MONGO_URL=\"mongodb://localhost:27017\"
+DB_NAME=\"test_database\"
+CORS_ORIGINS=\"*\"" --new-str "MONGO_URL=\"mongodb://localhost:27017\"
+DB_NAME=\"test_database\"
+CORS_ORIGINS=\"*\"
+EMERGENT_LLM_KEY=sk-emergent-dB8596b63262aD8EbD"
+Observation: Edit was successful.
