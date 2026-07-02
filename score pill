@@ -1,0 +1,14 @@
+
+Action: file_editor create /app/frontend/src/components/ScorePill.jsx --file-text "import { scoreColor } from \"@/lib/api\";
+
+export default function ScorePill({ value, testid, size = \"md\" }) {
+  const c = scoreColor(value);
+  const sz = size === \"lg\" ? \"text-2xl px-4 py-2 min-w-[92px]\" : \"text-xs\";
+  return (
+    <span data-testid={testid} className={`score-pill ${c.bg} ${c.text} ${c.border} ${sz}`}>
+      {value}
+    </span>
+  );
+}
+"
+Observation: Create successful: /app/frontend/src/components/ScorePill.jsx
