@@ -1,0 +1,18 @@
+
+Action: $ API_URL=$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d '=' -f2) && \
+echo "URL=$API_URL" && \
+curl -s "$API_URL/api/" && echo && \
+curl -s "$API_URL/api/stats" && echo && \
+JOB=$(curl -s -X POST "$API_URL/api/jobs" -H "Content-Type: application/json" -d '{"title":"Senior Backend Engineer","company":"Acme","seniority":"senior","description":"We need a backend engineer strong in Python, FastAPI, PostgreSQL, and event-driven architectures. 5+ years experience preferred.","required_skills":["Python","FastAPI","PostgreSQL","Kafka"]}') && \
+echo "JOB=$JOB" && \
+JOB_ID=$(echo $JOB | python3 -c "import sys,json;print(json.load(sys.stdin)['id'])") && \
+echo "JOB_ID=$JOB_ID" && \
+CAND=$(curl -s -X POST "$API_URL/api/jobs/$JOB_ID/candidates" -H "Content-Type: application/json" -d '{"name":"Ada Lovelace","email":"ada@example.com","headline":"Senior Python engineer","years_experience":6,"education":"BSc Mathematics, Cambridge","skills":["Python","FastAPI","PostgreSQL","Docker","AWS"],"resume_text":"6 years designing high-throughput Python services. Built event-driven pipelines using Kafka at scale. Led migration to FastAPI. Mentored junior engineers."}') && \
+echo "CAND=$CAND"
+Observation: URL=https://talent-rank-4.preview.emergentagent.com
+{"service":"TalentRank AI","status":"ok"}
+{"jobs":0,"candidates":0,"ranked":0,"avg_score":0,"top":[]}
+JOB={"id":"14a8f9c4-e136-48aa-b06f-755eb75f7ee3","title":"Senior Backend Engineer","company":"Acme","description":"We need a backend engineer strong in Python, FastAPI, PostgreSQL, and event-driven architectures. 5+ years experience preferred.","required_skills":["Python","FastAPI","PostgreSQL","Kafka"],"seniority":"senior","created_at":"2026-07-02T12:01:06.435272+00:00"}
+JOB_ID=14a8f9c4-e136-48aa-b06f-755eb75f7ee3
+CAND={"id":"ff637897-7440-44a1-8eb4-9d6c255d0564","job_id":"14a8f9c4-e136-48aa-b06f-755eb75f7ee3","name":"Ada Lovelace","email":"ada@example.com","headline":"Senior Python engineer","years_experience":6.0,"education":"BSc Mathematics, Cambridge","skills":["Python","FastAPI","PostgreSQL","Docker","AWS"],"resume_text":"6 years designing high-throughput Python services. Built event-driven pipelines using Kafka at scale. Led migration to FastAPI. Mentored junior engineers.","scores":{"overall":0,"skills":0,"experience":0,"education":0,"culture_fit":0},"strengths":[],"gaps":[],"explanation":"","ranked":false,"created_at":"2026-07-02T12:01:06.724373+00:00"}
+Exit code: 0
