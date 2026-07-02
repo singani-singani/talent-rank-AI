@@ -1,0 +1,145 @@
+
+Action: file_editor create /app/frontend/src/pages/Compare.jsx --file-text "import { useEffect, useMemo, useState } from \"react\";
+import { Link, useParams } from \"react-router-dom\";
+import { api, scoreColor } from \"@/lib/api\";
+import { ArrowLeft } from \"@phosphor-icons/react\";
+import ScorePill from \"@/components/ScorePill\";
+import ScoreBar from \"@/components/ScoreBar\";
+
+const DIMENSIONS = [
+  { key: \"overall\", label: \"Overall\" },
+  { key: \"skills\", label: \"Skills\" },
+  { key: \"experience\", label: \"Experience\" },
+  { key: \"education\", label: \"Education\" },
+  { key: \"culture_fit\", label: \"Culture fit\" },
+];
+
+export default function Compare() {
+  const { id } = useParams();
+  const [job, setJob] = useState(null);
+  const [candidates, setCandidates] = useState([]);
+  const [pickA, setPickA] = useState(\"\");
+  const [pickB, setPickB] = useState(\"\");
+
+  useEffect(() => {
+    (async () => {
+      const [j, c] = await Promise.all([api.get(`/jobs/${id}`), api.get(`/jobs/${id}/candidates`)]);
+      setJob(j.data);
+      const ranked = c.data.filter((x) => x.ranked);
+      setCandidates(ranked);
+      if (ranked[0]) setPickA(ranked[0].id);
+      if (ranked[1]) setPickB(ranked[1].id);
+    })();
+  }, [id]);
+
+  const a = useMemo(() => candidates.find((c) => c.id === pickA), [candidates, pickA]);
+  const b = useMemo(() => candidates.find((c) => c.id === pickB), [candidates, pickB]);
+
+  if (!job) return <div className=\"font-mono text-sm text-slate-500\">Loading…</div>;
+
+  return (
+    <div className=\"space-y-6\" data-testid=\"compare-page\">
+      <Link to={`/jobs/${id}`} data-testid=\"compare-back\" className=\"inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900\">
+        <ArrowLeft size={14} /> Back to job
+      </Link>
+
+      <div className=\"border-b border-slate-200 pb-4\">
+        <div className=\"overline\">SIDE-BY-SIDE</div>
+        <h1 className=\"font-display text-3xl sm:text-4xl font-black tracking-tight\">Compare candidates</h1>
+        <p className=\"text-sm text-slate-600 mt-1\">Head-to-head for <span className=\"font-semibold\">{job.title}</span></p>
+      </div>
+
+      {candidates.length < 2 ? (
+        <div className=\"border border-dashed border-slate-300 p-10 text-center font-mono text-sm text-slate-500\">
+          Need at least two ranked candidates to compare. Add more and run TalentRank AI.
+        </div>
+      ) : (
+        <>
+          <div className=\"grid grid-cols-2 gap-4\">
+            <select
+              data-testid=\"pick-a\"
+              value={pickA}
+              onChange={(e) => setPickA(e.target.value)}
+              className=\"sharp-input\"
+            >
+              {candidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <select
+              data-testid=\"pick-b\"
+              value={pickB}
+              onChange={(e) => setPickB(e.target.value)}
+              className=\"sharp-input\"
+            >
+              {candidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className=\"grid grid-cols-2 gap-4\">
+            {[a, b].map((c, idx) => {
+              if (!c) return <div key={idx} />;
+              const col = scoreColor(c.scores?.overall ?? 0);
+              return (
+                <div key={c.id} className=\"border border-slate-200 bg-white\" data-testid={`compare-card-${idx}`}>
+                  <div className=\"p-5 border-b border-slate-200 flex items-start justify-between\">
+                    <div className=\"min-w-0\">
+                      <div className=\"overline\">{idx === 0 ? \"SIDE A\" : \"SIDE B\"}</div>
+                      <div className=\"font-display text-2xl font-bold truncate\">{c.name}</div>
+                      <div className=\"text-xs font-mono text-slate-500 truncate\">
+                        {c.headline || c.email || \"—\"}
+                      </div>
+                    </div>
+                    <ScorePill value={c.scores?.overall ?? 0} size=\"lg\" testid={`compare-overall-${idx}`} />
+                  </div>
+                  <div className=\"p-5 space-y-4\">
+                    {DIMENSIONS.filter((d) => d.key !== \"overall\").map((d) => (
+                      <ScoreBar
+                        key={d.key}
+                        label={d.label}
+                        value={c.scores[d.key] || 0}
+                        testid={`compare-bar-${d.key}-${idx}`}
+                      />
+                    ))}
+                  </div>
+                  <div className=\"px-5 pb-5\">
+                    <div className=\"overline mb-2\">REASONING</div>
+                    <div className={`text-sm font-mono text-slate-800 leading-relaxed bg-slate-50 p-3 border-l-2 ${col.border}`}>
+                      {c.explanation || \"—\"}
+                    </div>
+                  </div>
+                  <div className=\"grid grid-cols-2 gap-0 border-t border-slate-200\">
+                    <div className=\"p-4 border-r border-slate-200\">
+                      <div className=\"overline mb-2 text-emerald-700\">STRENGTHS</div>
+                      <ul className=\"text-xs text-slate-700 space-y-1\">
+                        {c.strengths.map((s, k) => (
+                          <li key={k}>+ {s}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className=\"p-4\">
+                      <div className=\"overline mb-2 text-rose-700\">GAPS</div>
+                      <ul className=\"text-xs text-slate-700 space-y-1\">
+                        {c.gaps.map((s, k) => (
+                          <li key={k}>− {s}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+"
+Observation: Create successful: /app/frontend/src/pages/Compare.jsx
