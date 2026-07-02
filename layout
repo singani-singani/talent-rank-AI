@@ -1,0 +1,104 @@
+
+Action: file_editor create /app/frontend/src/components/Layout.jsx --file-text "import { Outlet, NavLink, Link, useLocation } from \"react-router-dom\";
+import { GridFour, Briefcase, Sparkle, GithubLogo } from \"@phosphor-icons/react\";
+
+const NavItem = ({ to, icon: Icon, label, testid, end }) => (
+  <NavLink
+    to={to}
+    end={end}
+    data-testid={testid}
+    className={({ isActive }) =>
+      `flex items-center gap-3 px-3 py-2 border-l-2 text-sm transition-colors ${
+        isActive
+          ? \"border-[#002FA7] bg-slate-50 text-slate-900 font-semibold\"
+          : \"border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900\"
+      }`
+    }
+  >
+    <Icon size={18} weight=\"bold\" />
+    <span>{label}</span>
+  </NavLink>
+);
+
+export default function Layout() {
+  const loc = useLocation();
+  return (
+    <div className=\"min-h-screen bg-white text-slate-900\">
+      <header className=\"sticky top-0 z-40 bg-white border-b border-slate-200\">
+        <div className=\"mx-auto max-w-[1400px] px-6 sm:px-8 h-16 flex items-center justify-between\">
+          <Link to=\"/\" data-testid=\"brand-link\" className=\"flex items-center gap-3\">
+            <div className=\"w-8 h-8 bg-[#002FA7] flex items-center justify-center\">
+              <Sparkle size={18} weight=\"fill\" className=\"text-white\" />
+            </div>
+            <div className=\"leading-tight\">
+              <div className=\"font-display text-lg font-black tracking-tight\">
+                TalentRank<span className=\"text-[#002FA7]\">.AI</span>
+              </div>
+              <div className=\"overline text-[10px]\">EXPLAINABLE HIRING INTELLIGENCE</div>
+            </div>
+          </Link>
+          <nav className=\"hidden md:flex items-center gap-1\">
+            <Link
+              to=\"/\"
+              data-testid=\"header-dashboard-link\"
+              className={`px-3 py-2 text-sm font-medium ${loc.pathname === \"/\" ? \"text-slate-900\" : \"text-slate-500 hover:text-slate-900\"}`}
+            >
+              Dashboard
+            </Link>
+            <Link
+              to=\"/jobs\"
+              data-testid=\"header-jobs-link\"
+              className={`px-3 py-2 text-sm font-medium ${loc.pathname.startsWith(\"/jobs\") ? \"text-slate-900\" : \"text-slate-500 hover:text-slate-900\"}`}
+            >
+              Jobs
+            </Link>
+            <a
+              href=\"https://emergent.sh\"
+              target=\"_blank\"
+              rel=\"noreferrer\"
+              data-testid=\"header-emergent-link\"
+              className=\"px-3 py-2 text-sm text-slate-500 hover:text-slate-900 flex items-center gap-1\"
+            >
+              <GithubLogo size={16} /> Emergent
+            </a>
+            <Link to=\"/jobs/new\" data-testid=\"header-new-job-btn\" className=\"btn-primary ml-2 h-9 text-sm\">
+              + New Job
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      <div className=\"mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 grid grid-cols-12 gap-6 pt-6 pb-16\">
+        <aside className=\"hidden lg:block col-span-2\">
+          <div className=\"sticky top-24 border border-slate-200 bg-white\">
+            <div className=\"p-4 border-b border-slate-200\">
+              <div className=\"overline text-[10px] mb-1\">NAVIGATE</div>
+              <div className=\"text-sm font-mono text-slate-700\">v1.0 · MVP</div>
+            </div>
+            <div className=\"py-2\">
+              <NavItem to=\"/\" end icon={GridFour} label=\"Dashboard\" testid=\"side-dashboard\" />
+              <NavItem to=\"/jobs\" icon={Briefcase} label=\"Jobs\" testid=\"side-jobs\" />
+            </div>
+            <div className=\"p-4 border-t border-slate-200 diag-bg\">
+              <div className=\"overline text-[10px]\">POWERED BY</div>
+              <div className=\"text-xs font-mono mt-1 text-slate-700\">Claude Sonnet 4.5</div>
+            </div>
+          </div>
+        </aside>
+
+        <main className=\"col-span-12 lg:col-span-10 min-w-0\">
+          <Outlet />
+        </main>
+      </div>
+
+      <footer className=\"border-t border-slate-200 py-6\">
+        <div className=\"mx-auto max-w-[1400px] px-6 flex items-center justify-between text-xs text-slate-500 font-mono\">
+          <span>TalentRank.AI — Explainable candidate intelligence.</span>
+          <span>© {new Date().getFullYear()}</span>
+        </div>
+      </footer>
+    </div>
+  );
+}
+"
+Observation: Create successful: /app/frontend/src/components/Layout.jsx
