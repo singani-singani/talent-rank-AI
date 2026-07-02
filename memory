@@ -1,0 +1,65 @@
+
+Action: file_editor create /app/memory/PRD.md --file-text "# TalentRank AI — PRD
+
+## Original problem statement
+TalentRank AI — Explainable Candidate Intelligence & Ranking Platform. A recruiter tool that
+lets users define a job, add or upload candidate resumes, and get an AI-generated ranking
+with an explainable breakdown across skills, experience, education, and culture fit.
+
+## User personas
+- Recruiter / hiring manager evaluating a pipeline of candidates for one job.
+- Founder / hiring lead needing a fast, defensible shortlist for a role.
+
+## Architecture
+- FastAPI backend (`/app/backend/server.py`) — MongoDB via Motor.
+- Frontend: React + Tailwind + shadcn (Swiss High-Contrast design).
+- LLM: Claude Sonnet 4.5 via `emergentintegrations` (Emergent Universal LLM key).
+- PDF parsing: `pypdf`.
+
+## Data model
+- `jobs`: id, title, company, description, required_skills[], seniority, created_at
+- `candidates`: id, job_id, name, email, headline, years_experience, education,
+  skills[], resume_text, scores{overall, skills, experience, education, culture_fit},
+  strengths[], gaps[], explanation, ranked, created_at
+
+## API surface (all under `/api`)
+- GET `/` — health
+- GET `/stats` — pipeline stats + top 3 candidates
+- POST `/jobs`, GET `/jobs`, GET `/jobs/{id}`, DELETE `/jobs/{id}`
+- GET `/jobs/{id}/candidates`
+- POST `/jobs/{id}/candidates` — manual add
+- POST `/jobs/{id}/candidates/upload` — PDF/TXT resume upload
+- DELETE `/candidates/{id}`
+- POST `/jobs/{id}/rank` — batch rank all candidates with Claude Sonnet 4.5
+- POST `/candidates/{id}/rerank` — re-score one
+- GET `/jobs/{id}/export.csv` — download shortlist CSV
+
+## Frontend routes
+- `/` Dashboard (hero + stats + top candidates + recent jobs)
+- `/jobs` Jobs list
+- `/jobs/new` Job creation form
+- `/jobs/:id` Job detail with leaderboard, upload/manual entry, run-ranking, export
+- `/jobs/:id/compare` Side-by-side candidate comparison
+
+## Implemented (2026-07-02) — MVP v1.0
+- Full CRUD for jobs + candidates
+- Resume PDF/TXT upload with basic heuristic parsing (name, email, years)
+- AI ranking with explainable score breakdown, strengths, gaps
+- Side-by-side comparison view
+- CSV shortlist export
+- Dense Swiss-style dashboard (Cabinet Grotesk / IBM Plex Sans + Mono)
+
+## Known limits
+- Emergent LLM key balance was exhausted at build time; ranking API returns \"failed\"
+  until user tops up (Profile → Universal Key → Add Balance).
+
+## Backlog (P1 / P2)
+- Bulk upload with drag-and-drop zone
+- Recharts radar chart for candidate comparison
+- Job templates library
+- Auth (JWT or Emergent Google) + multi-user tenancy
+- Interview question generator from job + candidate context (per-candidate)
+- Streaming ranking output over SSE for live UX
+- LinkedIn / ATS integrations
+"
+Observation: Create successful: /app/memory/PRD.md
