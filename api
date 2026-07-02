@@ -1,0 +1,15 @@
+
+Action: file_editor create /app/frontend/src/lib/api.js --file-text "import axios from \"axios\";
+
+export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+export const API = `${BACKEND_URL}/api`;
+
+export const api = axios.create({ baseURL: API });
+
+export const scoreColor = (n) => {
+  if (n >= 80) return { bg: \"bg-emerald-50\", text: \"text-emerald-700\", border: \"border-emerald-300\", bar: \"bg-emerald-500\" };
+  if (n >= 60) return { bg: \"bg-amber-50\", text: \"text-amber-700\", border: \"border-amber-300\", bar: \"bg-amber-500\" };
+  return { bg: \"bg-rose-50\", text: \"text-rose-700\", border: \"border-rose-300\", bar: \"bg-rose-500\" };
+};
+"
+Observation: Create successful: /app/frontend/src/lib/api.js
