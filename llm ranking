@@ -1,0 +1,38 @@
+Now test the LLM ranking:
+Action: $ API_URL=$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d '=' -f2) && \
+JOB_ID="14a8f9c4-e136-48aa-b06f-755eb75f7ee3" && \
+curl -s -X POST "$API_URL/api/jobs/$JOB_ID/rank" -H "Content-Type: application/json" --max-time 90 && echo && \
+curl -s "$API_URL/api/jobs/$JOB_ID/candidates" | python3 -m json.tool | head -60
+Observation: {"ranked":0,"failed":1,"total":1}
+[
+    {
+        "id": "ff637897-7440-44a1-8eb4-9d6c255d0564",
+        "job_id": "14a8f9c4-e136-48aa-b06f-755eb75f7ee3",
+        "name": "Ada Lovelace",
+        "email": "ada@example.com",
+        "headline": "Senior Python engineer",
+        "years_experience": 6.0,
+        "education": "BSc Mathematics, Cambridge",
+        "skills": [
+            "Python",
+            "FastAPI",
+            "PostgreSQL",
+            "Docker",
+            "AWS"
+        ],
+        "resume_text": "6 years designing high-throughput Python services. Built event-driven pipelines using Kafka at scale. Led migration to FastAPI. Mentored junior engineers.",
+        "scores": {
+            "overall": 0,
+            "skills": 0,
+            "experience": 0,
+            "education": 0,
+            "culture_fit": 0
+        },
+        "strengths": [],
+        "gaps": [],
+        "explanation": "",
+        "ranked": false,
+        "created_at": "2026-07-02T12:01:06.724373+00:00"
+    }
+]
+Exit code: 0
